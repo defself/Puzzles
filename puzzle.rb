@@ -2,7 +2,7 @@ class Puzzle
   attr_reader :max
 
   def initialize
-    @url = '/home/seniorihor/Code/shoes/puzzles/pictures/'
+    @path = '/home/seniorihor/Code/shoes/puzzles/pictures/'
     @min = 0
     @max = 6
     @num = @min
@@ -22,11 +22,11 @@ class Puzzle
     @num
   end
 
-  def get_url
+  def path
     if @last
       nil
     else
-      "#{@url}#{self.next}#{@ext}"
+      "#{@path}#{self.next}#{@ext}"
     end
   end
 end
