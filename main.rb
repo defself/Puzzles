@@ -65,9 +65,11 @@ Shoes.app(width:  1000,
                                                  width:  100,
                                                  height: 100) } unless @puzzle.last
     @puzzles << @current_puzzle
+    drag_and_drop_puzzle
+  end
 
-    # Drag and drop puzzle
-    @puzzles.each do |p|
+  def drag_and_drop_puzzle
+    @puzzles.dup.each do |p|
       p.click do
         motion do |left, top|
           p.move(left - 50,
@@ -80,5 +82,5 @@ Shoes.app(width:  1000,
 
   def quit!
     exit if confirm('Are you sure?')
-  end 
+  end
 end
