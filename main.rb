@@ -1,67 +1,84 @@
 #! /usr/bin/env shoes
 
+require './picture.rb'
 require './puzzle.rb'
 
-Shoes.app(width: 1024,
-          height: 768,
-          title: 'Puzzle Game',
+Shoes.app(width:  1000,
+          height: 600,
+          title:  'Puzzle Game',
           resizable: false) do
-            
-  # Add next puzzle
-  def add
-    if path = @puzz.path
-      @puzzles << @puzzle = image(path,
-                                  weidth: 100,
-                                  height: 100)
-      move
-    else
-      @puzzle = nil
+
+  @picture = Picture.new
+  @puzzle  = Puzzle.new
+  @puzzles = []
+
+  @puzzle_box = flow(width:  800,
+                     height: 600) do
+    background rgb(0.1, 0.2, 0.3, 0.2)
+  end
+
+  @menu_box = stack(width:  200,
+                    height: 600) do
+    background orange(0.5)
+
+    # Make lines
+    (1..5).each do |i|
+      power = 1.0 / i unless i == 1
+      stroke orange(power)
+      strokewidth(i * i)
+      
+      # Horizontal lines
+      top  =  100; top  *= i
+      line(0, top, 200, top)
+
+      # Vertical lines
+      left = 35; left *= i
+      line(left, 0, left, 600)
+    end
+
+    button('Open picture', left: 35, top:  85) { open_picture unless @current_picture }
+    button(' Add puzzle ', left: 35, top: 185) { @current_picture ? add_puzzle   : open_picture }
+    button('Show picture', left: 35, top: 285) { @current_picture ? show_picture : open_picture }
+    button('    Test    ', left: 35, top: 385) { info 'test' }
+    button('  Say bye!  ', left: 35, top: 485) { quit! }
+  end
+
+
+  def open_picture
+    @picture.open
+    @current_picture = @picture.path
+  end
+
+  def show_picture
+    window(width:  800,
+           height: 600) do
+      if @current_picture
+        image @current_picture
+      else
+        para 'Oops! Not found a picture...'
+      end
     end
   end
 
-  # Reorganize certain puzzle
-  #def put
-  #  @puzzle = @puzzles[ask('Which puzzle?').to_i - 1]
-  #end
+  def add_puzzle
+    @puzzle_box.append { @current_puzzle = image(@puzzle.add,
+                                                 width:  100,
+                                                 height: 100) } unless @puzzle.last
+    @puzzles << @current_puzzle
 
-  # Move puzzle
-  def move
-    motion do |left, top|
-      @puzzle.move(left + 1,
-                   top + 1) if @puzzle
-    end
-  end
-
-  # Drag each puzzle
-  def drag
+    # Drag and drop puzzle
     @puzzles.each do |p|
       p.click do
         motion do |left, top|
-          p.move(left + 1,
-                 top + 1)
+          p.move(left - 50,
+                 top  - 50) if p
+          @puzzle_box.click { p = nil }
         end
       end
     end
   end
 
-  @body = stack(height: 0.8) do
-    background rgb(0.5, 0.5, 0.5, 0.2)
-
-    # @puzz is initialized Puzzle object
-    @puzz = Puzzle.new
-    @puzzles = []
-    LOCK_MSG = "Lock out all puzzles? You won't use drag and drop after this."
-    
-    # Menu buttons
-    flow do
-      button('Open picture', margin: 5) { @pic = ask_open_file }
-      button('Add puzzle', margin: 5) { add }
-      #button('Reorganize puzzle', margin: 5) { put }
-      button('Lock', margin: 5) { @puzzles = nil if confirm(LOCK_MSG) }
-      button('Exit', margin: 5) { exit if confirm('Are you sure?') }
-    end
-  end
-
-  # Drop current puzzle
-  @body.click { @puzzle = nil if @puzzle; drag }
+  def quit!
+    exit if confirm('Are you sure?')
+  end 
 end
