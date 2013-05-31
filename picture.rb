@@ -1,5 +1,6 @@
 class Picture < Shoes::App
   attr_reader :path, :pictures
+  attr_accessor
 
   def initialize
     @pictures = []
@@ -8,5 +9,6 @@ class Picture < Shoes::App
   
   def open
     @pictures << @path = ask_open_file
+    @path
   end
 end
