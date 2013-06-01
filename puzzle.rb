@@ -1,12 +1,13 @@
 require 'RMagick'
 
 class Puzzle
+  attr_reader :dir
   
   def initialize(path)
-    @pic  = Magick::Image.read(path).first
-    @all  = {}
-    @path = './data/puzzles/'
-    @ext  = path[-4..-1] # Avaible: '.jpg', '.gif', '.png'
+    @pic = Magick::Image.read(path).first
+    @all = {}
+    @dir = './data/puzzles/'
+    @ext = path[-4..-1] # Avaible: '.jpg', '.gif', '.png'
   end
 
   def split
@@ -21,8 +22,8 @@ class Puzzle
       while x < 800
         self.extract(x, y, split_width, split_height) do |p|
           name = prefix.gsub(/\%row/, row.to_s).gsub(/\%col/, col.to_s)
-          p.write("#{@path + name + @ext}")
-          row_col = "#{row}_#{col}".to_sym
+          p.write("#{@dir + name + @ext}")
+          row_col = "#{col}_#{row}".to_sym
           @all[row_col] = p
         end
         x   += split_width

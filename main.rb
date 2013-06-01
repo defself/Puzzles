@@ -2,34 +2,41 @@
 
 require './puzzle.rb'
 
-Shoes.app(width:  1100,
-          height: 600,
-          title:  'Puzzle Game',
+Shoes.app(width:     1100,
+          height:    600,
+          title:     'Puzzle Game',
           resizable: false) do
-
-
-############################## Boxes ##############################
-
 
   # Menu
   stack(width:  200,
         height: 600,
-        left: 0) do
-    background '/home/seniorihor/Code/shoes/puzzles/data/menu.png'
+        left:   0) do
+    background './data/menu.png'
     border(black, strokewidth: 8)
 
     # Buttons
-    { open_picture:         'Open picture',
-      show_or_hide_picture: ' Show/Hide  ',
-      quit!:                '  Say bye!  ' }.map { |m, t|
-        button(t, margin: 35) { eval m.to_s } }
+    button('New picture', margin: 35) { new_picture }
+    button(' Show/Hide ', margin: 35) { show_or_hide_picture }
+    button(' Quit game ', margin: 35) { quit! }
+  end
+
+  def cache_cleaner
+    # Delete all files in the puzzles directory
+    if @puzzle
+      Dir.open(dir = @puzzle.dir).each do |f|
+        File.delete(dir + f) if f != '.' && f != '..'
+      end
+      @puzzle = nil
+    end
+    
+    @puzzles = nil if @puzzles
+    @mathes  = 0
+    @table.remove  if @table
   end
 
   # Table for puzzles
   def reload_table
-    @puzzle  = nil if @puzzle
-    @puzzles = nil if @puzzles
-    @table.remove  if @table
+    cache_cleaner
 
     @table = stack(width:  900,
                    height: 600,
@@ -51,13 +58,9 @@ Shoes.app(width:  1100,
   end
   reload_table
 
-
-############################# Methods #############################
-
-
-  def open_picture
+  def new_picture
     if @picture
-      return nil unless confirm('Choose new picture?')
+      return nil unless confirm('Choose new picture? Progress will be lost.')
       reload_table
     end
     return nil unless path = ask_open_file
@@ -66,7 +69,7 @@ Shoes.app(width:  1100,
     @table.append { @picture = image(path,
                                      width:  800,
                                      height: 600).move(100, 0) }
-    info "Took picture from #{path}"
+    info "Load new picture from #{path}"
     
     @puzzles = {}
     @puzzle  = Puzzle.new(path)
@@ -75,18 +78,19 @@ Shoes.app(width:  1100,
   end
 
   def show_puzzles
-    return open_picture unless @picture
+    return new_picture unless @picture
     return nil unless @puzzle
 
-    @puzzles.map do |k, v|
-      @table.append { v = image v }
+    @puzzles.reverse_each do |k, v|
+      @table.append  { v = image v }
       @puzzles[k] = v
     end
     show_or_hide_picture unless @picture.hidden
   end
 
   def show_or_hide_picture
-    return open_picture unless @picture
+    return new_picture unless @picture
+    return nil unless @puzzles
 
     if @picture.hidden
       @picture.show
@@ -100,21 +104,56 @@ Shoes.app(width:  1100,
   def drag_and_drop
     return nil unless @puzzles
 
-    @puzzles.each_value do |p|
-      p.click do
+    @puzzles.map do |k, v|
+      v.click do
         motion do |left, top|
           # Drag a puzzle
-          p.move(left - 250,
-                 top  - 50) if p
+          v.move(left - 250,
+                 top  - 50) if v
           # Drop a puzzle
-          @table.release { p = nil }
+          @table.release do
+            v = nil
+            puzzle_match?(k, left, top)
+          end
         end
       end
     end
   end
-
+  
+  def puzzle_match?(k, l, t)
+    original = []
+    k.to_s.split('_').each { |i| original << i.to_i * 100 }
+    left = (original.first + 300)..(original.first + 400)
+    top  = (original.last  +   0)..(original.last  + 100)
+    
+    if left.include?(l) && top.include?(t)
+      @puzzles[k].move(original.first + 100, original.last)
+      @mathes == @puzzles.count ? level_complete? : @mathes += 1
+    end
+  end
+  
+  def level_complete?
+    winner = false
+    @puzzles.each do |k, v|
+      original, current = [], []
+      k.to_s.split('_').map { |i| original << i.to_i * 100 }
+      original[0] += 100
+      current = [v.left, v.top]
+      winner = original == current ? true : false
+    end
+    
+    if winner
+      quit! unless confirm("Congratulations! You are winner!!!\n" +
+                           'Would you like continue game?')
+      reload_table
+    end
+  end
+  
   def quit!
-    msg = "Progress won't be saved." if @picture
-    exit if confirm("Are you sure? #{msg if msg}")
+    msg = "Progress will be lost." if @picture
+    if confirm("Are you sure? #{msg if msg}")
+      cache_cleaner
+      exit
+    end
   end
 end
