@@ -8,7 +8,7 @@ Shoes.app(width:  1000,
           resizable: false) do
 
 
-################################ Boxes ################################
+############################## Boxes ##############################
 
 
   # Menu
@@ -52,7 +52,7 @@ Shoes.app(width:  1000,
   reload_table
 
 
-################################ Methods ################################
+############################# Methods #############################
 
 
   def open_picture
@@ -89,16 +89,15 @@ Shoes.app(width:  1000,
 
   def add_puzzle
     return open_picture unless @picture
-    return nil unless @puzzle
     return info('All puzzles are on the table') unless @puzzles.size < @puzzle.max
+    return nil unless @puzzle
     show_or_hide_picture unless @picture.hidden
 
     path = @puzzle.add
-    if path && !@puzzle.last
+    if path
       @table.append { (@puzzles << image(path,
                                          width:  100,
                                          height: 100)).last }
-      #@table.append { para @puzzles.last.methods.sort.join("\t") }
     end
   end
 

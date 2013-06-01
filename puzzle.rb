@@ -1,7 +1,7 @@
 require 'RMagick'
 
 class Puzzle < Shoes::App
-  attr_reader :max, :last, :picture
+  attr_reader :max, :picture
   attr_accessor :all
 
   def initialize
