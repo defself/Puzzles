@@ -1,96 +1,125 @@
 #! /usr/bin/env shoes
 
-require './picture.rb'
 require './puzzle.rb'
-require 'RMagick'
 
 Shoes.app(width:  1000,
           height: 600,
           title:  'Puzzle Game',
           resizable: false) do
 
-  @picture = Picture.new
-  @puzzle  = Puzzle.new
-  @puzzles = []
 
-  @puzzle_box = flow(width:  800,
-                     height: 600) do
-    background orange(0.2)
+################################ Boxes ################################
+
+
+  # Menu
+  stack(width:  200,
+        height: 600,
+        left: 0) do
+    background '/home/seniorihor/Code/shoes/puzzles/data/menu.png'
+    border(black, strokewidth: 8)
+
+    # Buttons
+    { open_picture:         'Open picture',
+      add_puzzle:           ' Add puzzle ',
+      show_or_hide_picture: ' Show/Hide  ',
+      quit!:                '  Say bye!  ' }.map { |m, t|
+        button(t, margin: 35) { eval m.to_s } }
   end
 
-  @menu_box = stack(width:  200,
-                    height: 600) do
-    background orange(0.5)
+  # Table for puzzles
+  def reload_table
+    @puzzle, @puzzles = nil if @puzzle && @puzzles
+    @table.remove if @table
 
-    # Make lines
-    (1..5).each do |i|
-      power = 1.0 / i unless i == 1
-      stroke orange(power)
-      strokewidth(i * i)
-      
-      # Horizontal lines
-      top  =  100; top  *= i
-      line(0, top, 200, top)
+    @table = flow(width:  800,
+                  height: 600,
+                  right: 0) do
+      background rgb(0.824, 0.706, 0.549, 0.5)
+      stroke white
+      strokewidth 4
 
-      # Vertical lines
-      left = 35; left *= i
-      line(left, 0, left, 600)
+      # Make lines
+      v, h = 0, 0
+      9.times do
+        line(v, 0, v, 600) if v <= 800
+        line(0, h, 800, h) if h <= 600
+        v += 100
+        h += 100
+      end
     end
-
-    button('Open picture', left: 35, top:  85) { open_picture }
-    button(' Add puzzle ', left: 35, top: 185) { add_puzzle }
-    button(' Show/Hide  ', left: 35, top: 285) { show_or_hide_picture }
-    button('  Results   ', left: 35, top: 385) {}
-    button('  Say bye!  ', left: 35, top: 485) { quit! }
+    @table.click { drag_and_drop_puzzle }
   end
+  reload_table
+
+
+################################ Methods ################################
 
 
   def open_picture
-    return warn('You already choose a picture!') if @current_picture
+    if @picture
+      return nil unless confirm('Choose new picture?')
+      reload_table
+    end
+    return nil unless path = ask_open_file
+    @puzzle  = Puzzle.new
+    @puzzle.load(path)
+    @puzzles = @puzzle.all
 
-    @puzzle_box.append { @current_picture = image(@picture.open,
-                                                  width:  800,
-                                                  height: 600) }
+    if path =~ /.jpg/ # Add check for other formats!!!
+      @table.append { @picture = image(@puzzle.picture.to_s.split.first,
+                                       width:  800,
+                                       height: 600) }
+      info "Took picture from #{path}"
+    else
+      warn 'Unsupported image format'
+    end
   end
 
   def show_or_hide_picture
-    return open_picture unless @current_picture
+    return open_picture unless @picture
 
-    if @current_picture.hidden
+    if @picture.hidden
+      @picture.show
       @puzzles.map { |p| p.hide } if @puzzles.any?
-      @current_picture.show
     else
-      @current_picture.hide
+      @picture.hide
       @puzzles.map { |p| p.show } if @puzzles.any?
     end
   end
 
   def add_puzzle
-    return open_picture  unless @current_picture
-    show_or_hide_picture unless @current_picture.hidden
+    return open_picture unless @picture
+    return nil unless @puzzle
+    return info('All puzzles are on the table') unless @puzzles.size < @puzzle.max
+    show_or_hide_picture unless @picture.hidden
 
-    @puzzle_box.append { @current_puzzle = image(@puzzle.add,
-                                                 width:  100,
-                                                 height: 100) } unless @puzzle.last
-    @puzzles << @current_puzzle if @current_puzzle
-    drag_and_drop_puzzle
+    path = @puzzle.add
+    if path && !@puzzle.last
+      @table.append { (@puzzles << image(path,
+                                         width:  100,
+                                         height: 100)).last }
+      #@table.append { para @puzzles.last.methods.sort.join("\t") }
+    end
   end
 
   def drag_and_drop_puzzle
+    return nil unless @puzzles
+
     @puzzles.dup.each do |p|
       p.click do
         motion do |left, top|
           # Drag puzzle
-          p.move(left - 50,
+          p.move(left - 250,
                  top  - 50) if p
           # Drop puzzle
-          @puzzle_box.click { p = nil }
+          @table.release { p = nil }
         end
       end
     end
   end
 
   def quit!
-    exit if confirm("Data won't be saved. Are you sure?")
+    msg = "Progress won't be saved." if @picture
+    exit if confirm("Are you sure? #{msg if msg}")
   end
 end
