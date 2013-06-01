@@ -2,7 +2,7 @@
 
 require './puzzle.rb'
 
-Shoes.app(width:  1000,
+Shoes.app(width:  1100,
           height: 600,
           title:  'Puzzle Game',
           resizable: false) do
@@ -20,7 +20,6 @@ Shoes.app(width:  1000,
 
     # Buttons
     { open_picture:         'Open picture',
-      add_puzzle:           ' Add puzzle ',
       show_or_hide_picture: ' Show/Hide  ',
       quit!:                '  Say bye!  ' }.map { |m, t|
         button(t, margin: 35) { eval m.to_s } }
@@ -28,26 +27,27 @@ Shoes.app(width:  1000,
 
   # Table for puzzles
   def reload_table
-    @puzzle, @puzzles = nil if @puzzle && @puzzles
-    @table.remove if @table
+    @puzzle  = nil if @puzzle
+    @puzzles = nil if @puzzles
+    @table.remove  if @table
 
-    @table = flow(width:  800,
-                  height: 600,
-                  right: 0) do
+    @table = stack(width:  900,
+                   height: 600,
+                   right:  0) do
       background rgb(0.824, 0.706, 0.549, 0.5)
       stroke white
       strokewidth 4
 
       # Make lines
-      v, h = 0, 0
+      v, h = 100, 0
       9.times do
-        line(v, 0, v, 600) if v <= 800
-        line(0, h, 800, h) if h <= 600
+        line(v, 0, v, 600) if v <= 900
+        line(100, h, 900, h) if h <= 600
         v += 100
         h += 100
       end
     end
-    @table.click { drag_and_drop_puzzle }
+    @table.click { drag_and_drop }
   end
   reload_table
 
@@ -61,18 +61,28 @@ Shoes.app(width:  1000,
       reload_table
     end
     return nil unless path = ask_open_file
-    @puzzle  = Puzzle.new
-    @puzzle.load(path)
-    @puzzles = @puzzle.all
+    return warn('Unsupported image format') unless path =~ /.jpg/ # Fix this!!!
+    
+    @table.append { @picture = image(path,
+                                     width:  800,
+                                     height: 600).move(100, 0) }
+    info "Took picture from #{path}"
+    
+    @puzzles = {}
+    @puzzle  = Puzzle.new(path)
+    @puzzle.split.map { |k, v| @puzzles[k] = v.base_filename }
+    show_puzzles
+  end
 
-    if path =~ /.jpg/ # Add check for other formats!!!
-      @table.append { @picture = image(@puzzle.picture.to_s.split.first,
-                                       width:  800,
-                                       height: 600) }
-      info "Took picture from #{path}"
-    else
-      warn 'Unsupported image format'
+  def show_puzzles
+    return open_picture unless @picture
+    return nil unless @puzzle
+
+    @puzzles.map do |k, v|
+      @table.append { v = image v }
+      @puzzles[k] = v
     end
+    show_or_hide_picture unless @picture.hidden
   end
 
   def show_or_hide_picture
@@ -80,37 +90,23 @@ Shoes.app(width:  1000,
 
     if @picture.hidden
       @picture.show
-      @puzzles.map { |p| p.hide } if @puzzles.any?
+      @puzzles.each_value { |p| p.hide } if @puzzles.any?
     else
       @picture.hide
-      @puzzles.map { |p| p.show } if @puzzles.any?
+      @puzzles.each_value { |p| p.show } if @puzzles.any?
     end
   end
 
-  def add_puzzle
-    return open_picture unless @picture
-    return info('All puzzles are on the table') unless @puzzles.size < @puzzle.max
-    return nil unless @puzzle
-    show_or_hide_picture unless @picture.hidden
-
-    path = @puzzle.add
-    if path
-      @table.append { (@puzzles << image(path,
-                                         width:  100,
-                                         height: 100)).last }
-    end
-  end
-
-  def drag_and_drop_puzzle
+  def drag_and_drop
     return nil unless @puzzles
 
-    @puzzles.dup.each do |p|
+    @puzzles.each_value do |p|
       p.click do
         motion do |left, top|
-          # Drag puzzle
+          # Drag a puzzle
           p.move(left - 250,
                  top  - 50) if p
-          # Drop puzzle
+          # Drop a puzzle
           @table.release { p = nil }
         end
       end

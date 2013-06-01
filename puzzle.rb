@@ -1,64 +1,53 @@
 require 'RMagick'
 
-class Puzzle < Shoes::App
-  attr_reader :max, :picture
-  attr_accessor :all
-
-  def initialize
-    @num, @max = 0, 48
-    @path = './data/'
-    @ext  = '.jpg'
-    @all  = []
-    @last = false
-    @picture = nil
-  end
-
-  def add
-    return nil if @last
-
-    @num  = @num.next if @num < @max
-    @last = true if @num == @max
-    @path + @num.to_s + @ext
-  end
-
-  def load(path)
-    @picture = Magick::Image.read(path).first
+class Puzzle
+  
+  def initialize(path)
+    @pic  = Magick::Image.read(path).first
+    @all  = {}
+    @path = './data/puzzles/'
+    @ext  = path[-4..-1] # Avaible: '.jpg', '.gif', '.png'
   end
 
   def split
-    puzzle_width, puzzle_height = 100, 100
+    width, height = 800, 600
+    split_width, split_height = 100, 100
     x, y = 0, 0 
     col, row = 0, 0
-    prefix = '%r_%c'
-
-    while y < puzzle_height
-      while x < puzzle_width
-        split_width  = (x + 100) > puzzle_width  ? puzzle_width  - x : puzzle_width
-        split_height = (y + 100) > puzzle_height ? puzzle_height - y : puzzle_height
-
+    prefix = '%row_%col'
+    self.resize_picture(width, height)
+    
+    while y < 600
+      while x < 800
         self.extract(x, y, split_width, split_height) do |p|
-          name = prefix.gsub(/\%r/, row.to_s).gsub(/\%c/, col.to_s)
+          name = prefix.gsub(/\%row/, row.to_s).gsub(/\%col/, col.to_s)
           p.write("#{@path + name + @ext}")
+          row_col = "#{row}_#{col}".to_sym
+          @all[row_col] = p
         end
-
-        x += puzzle_width
+        x   += split_width
         col += 1
       end
-
-      x = 0
-      y += puzzle_height
-      col = 0
+      x    = 0
+      y   += split_height
+      col  = 0
       row += 1
     end
+    @all
+  end
+
+  def resize_picture(w, h)
+    @pic.resize!(w, h) if @pic.columns != w ||
+                          @pic.rows    != h
   end
 
   def extract(x, y, w, h)
-    buff = @picture.dispatch(x, y, w, h, "RGB", false)
-    ni = Magick::Image.constitute(w, h, "RGB", buff)
+    buff = @pic.dispatch(x, y, w, h, 'RGB', false)
+    ni   = Magick::Image.constitute(w, h, 'RGB', buff)
     yield(ni)
   end
 
-  def write(name)
-    @picture.write(name)
+  def write(path)
+    @pic.write(path)
   end
 end
