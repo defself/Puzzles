@@ -18,6 +18,7 @@ Shoes.app(width:     1100,
     button('New picture', margin: 35) { new_picture }
     button(' Show/Hide ', margin: 35) { show_or_hide_picture }
     button(' Quit game ', margin: 35) { quit! }
+    button('image_methods') { info "#{@picture.methods.sort.join("\t")}" }
   end
 
   def cache_cleaner
@@ -29,15 +30,14 @@ Shoes.app(width:     1100,
       @puzzle = nil
     end
     
-    @puzzles = nil if @puzzles
-    @mathes  = 0
+    @matches = 0
+    @puzzles.clear if @puzzles
     @table.remove  if @table
   end
 
   # Table for puzzles
   def reload_table
     cache_cleaner
-
     @table = stack(width:  900,
                    height: 600,
                    right:  0) do
@@ -64,27 +64,20 @@ Shoes.app(width:     1100,
       reload_table
     end
     return nil unless path = ask_open_file
-    return warn('Unsupported image format') unless path =~ /.jpg/ # Fix this!!!
+    formats = ['.jpg', '.gif', '.png']
+    return alert("Unsupported image format!\nAvaible: #{formats}") unless
+                                                        formats.include?(path[-4..-1])
     
     @table.append { @picture = image(path,
                                      width:  800,
                                      height: 600).move(100, 0) }
     info "Load new picture from #{path}"
     
-    @puzzles = {}
     @puzzle  = Puzzle.new(path)
-    @puzzle.split.map { |k, v| @puzzles[k] = v.base_filename }
-    show_puzzles
-  end
+    @puzzles = @puzzle.split
+    @puzzles.each { |k, v| @table.append {
+      @puzzles[k] = image(v.base_filename) } }
 
-  def show_puzzles
-    return new_picture unless @picture
-    return nil unless @puzzle
-
-    @puzzles.reverse_each do |k, v|
-      @table.append  { v = image v }
-      @puzzles[k] = v
-    end
     show_or_hide_picture unless @picture.hidden
   end
 
@@ -104,45 +97,47 @@ Shoes.app(width:     1100,
   def drag_and_drop
     return nil unless @puzzles
 
-    @puzzles.map do |k, v|
-      v.click do
+    @puzzles.map do |position, puzzle|
+      puzzle.click do
         motion do |left, top|
-          # Drag a puzzle
-          v.move(left - 250,
-                 top  - 50) if v
-          # Drop a puzzle
+          puzzle.move(left - 250,
+                      top  - 50) if puzzle
           @table.release do
-            v = nil
-            puzzle_match?(k, left, top)
+            puzzle = nil
+            puzzle_match?(position, left, top)
           end
         end
       end
     end
   end
   
-  def puzzle_match?(k, l, t)
-    original = []
-    k.to_s.split('_').each { |i| original << i.to_i * 100 }
-    left = (original.first + 300)..(original.first + 400)
-    top  = (original.last  +   0)..(original.last  + 100)
-    
-    if left.include?(l) && top.include?(t)
-      @puzzles[k].move(original.first + 100, original.last)
-      @mathes == @puzzles.count ? level_complete? : @mathes += 1
+  def puzzle_match?(key, current_left, current_top)
+    original = {}
+    key.to_s.split('_').each do |position|
+      position = position.to_i * 100
+      original.empty? ? original[:left] = position : original[:top] = position
+    end
+
+    if ((original[:left] + 300)..(original[:left] + 400)).include?(current_left) &&
+       (original[:top]..(original[:top]  + 100)).include?(current_top)
+      @puzzles[key].move(original[:left] + 100, original[:top])
+      @matches == @puzzles.size - 1 ? level_complete? : @matches += 1
     end
   end
   
   def level_complete?
     winner = false
-    @puzzles.each do |k, v|
-      original, current = [], []
-      k.to_s.split('_').map { |i| original << i.to_i * 100 }
-      original[0] += 100
-      current = [v.left, v.top]
-      winner = original == current ? true : false
+    @puzzles.each do |position, puzzle|
+      original = []
+      position.to_s.split('_').map { |position| original << position.to_i * 100 }
+      original[0] = original[0] + 100
+      current = [puzzle.left, puzzle.top]
+      winner  = original == current ? true : false
+      info "#{winner}, #{original}, #{current}"
+      break unless winner
     end
-    
     if winner
+      show_or_hide_picture
       quit! unless confirm("Congratulations! You are winner!!!\n" +
                            'Would you like continue game?')
       reload_table

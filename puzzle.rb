@@ -7,7 +7,7 @@ class Puzzle
     @pic = Magick::Image.read(path).first
     @all = {}
     @dir = './data/puzzles/'
-    @ext = path[-4..-1] # Avaible: '.jpg', '.gif', '.png'
+    @ext = path[-4..-1]
   end
 
   def split
@@ -15,16 +15,16 @@ class Puzzle
     split_width, split_height = 100, 100
     x, y = 0, 0 
     col, row = 0, 0
-    prefix = '%row_%col'
     self.resize_picture(width, height)
     
-    while y < 600
-      while x < 800
-        self.extract(x, y, split_width, split_height) do |p|
-          name = prefix.gsub(/\%row/, row.to_s).gsub(/\%col/, col.to_s)
-          p.write("#{@dir + name + @ext}")
-          row_col = "#{col}_#{row}".to_sym
-          @all[row_col] = p
+    @all.clear unless @all.empty?
+    while y < height
+      while x < width
+        self.extract(x, y, split_width, split_height) do |puzzle|
+          name = '%col_%row'.gsub(/\%col/, col.to_s).
+                             gsub(/\%row/, row.to_s)
+          puzzle.write("#{@dir + name + @ext}")
+          @all[name.to_sym] = puzzle
         end
         x   += split_width
         col += 1
