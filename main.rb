@@ -18,7 +18,6 @@ Shoes.app(width:     1100,
     button('New picture', margin: 35) { new_picture }
     button(' Show/Hide ', margin: 35) { show_or_hide_picture }
     button(' Quit game ', margin: 35) { quit! }
-    button('image_methods') { info "#{@picture.methods.sort.join("\t")}" }
   end
 
   def cache_cleaner
@@ -31,6 +30,7 @@ Shoes.app(width:     1100,
     end
     
     @matches = 0
+    @picture = nil if @picture
     @puzzles.clear if @puzzles
     @table.remove  if @table
   end
@@ -64,9 +64,10 @@ Shoes.app(width:     1100,
       reload_table
     end
     return nil unless path = ask_open_file
-    formats = ['.jpg', '.gif', '.png']
+    formats = ['jpg', 'gif', 'png']
+    ext = path.split('.').last
     return alert("Unsupported image format!\nAvaible: #{formats}") unless
-                                                        formats.include?(path[-4..-1])
+                                                        formats.include?(ext)
     
     @table.append { @picture = image(path,
                                      width:  800,
@@ -74,11 +75,21 @@ Shoes.app(width:     1100,
     info "Load new picture from #{path}"
     
     @puzzle  = Puzzle.new(path)
-    @puzzles = @puzzle.split
-    @puzzles.each { |k, v| @table.append {
-      @puzzles[k] = image(v.base_filename) } }
+    @puzzles = {}
+    puzzles  = @puzzle.split
 
-    show_or_hide_picture unless @picture.hidden
+    # Shuffle puzzles
+    random = []
+    puzzles.each_key { |k| random << k.to_s.to_i }
+    random = random.shuffle.map { |k| k.to_s.size == 2 ? k.to_s.to_sym : "0#{k}".to_sym }
+
+    # Show puzzles
+    puzzles.size.times do |i|
+      @table.append { @puzzles[random[i]] = image(puzzles[random[i]]) }
+    end
+    
+    info 'Puzzles are ready!'
+    show_or_hide_picture
   end
 
   def show_or_hide_picture
@@ -111,36 +122,46 @@ Shoes.app(width:     1100,
     end
   end
   
-  def puzzle_match?(key, current_left, current_top)
-    original = {}
-    key.to_s.split('_').each do |position|
-      position = position.to_i * 100
-      original.empty? ? original[:left] = position : original[:top] = position
-    end
+  def puzzle_match?(position, left, top)
+    original_top  = position.to_s[0].to_i * 100
+    original_left = position.to_s[1].to_i * 100
 
-    if ((original[:left] + 300)..(original[:left] + 400)).include?(current_left) &&
-       (original[:top]..(original[:top]  + 100)).include?(current_top)
-      @puzzles[key].move(original[:left] + 100, original[:top])
-      @matches == @puzzles.size - 1 ? level_complete? : @matches += 1
+    if ((original_left + 300)..(original_left + 400)).include?(left) &&
+       (original_top..(original_top + 100)).include?(top)
+      @puzzles[position].move(original_left + 100, original_top)
+      #@matches == @puzzles.size - 1 ? level_complete? : @matches += 1
+      if @matches == @puzzles.size - 1
+        level_complete?
+      else
+        @matches += 1
+      end
     end
   end
   
   def level_complete?
     winner = false
     @puzzles.each do |position, puzzle|
-      original = []
-      position.to_s.split('_').map { |position| original << position.to_i * 100 }
-      original[0] = original[0] + 100
-      current = [puzzle.left, puzzle.top]
-      winner  = original == current ? true : false
-      info "#{winner}, #{original}, #{current}"
+      original_top  = ((position.to_s[0].to_i * 100) - 100)..(position.to_s[0].to_i * 100)
+      original_left = (position.to_s[1].to_i * 100)..((position.to_s[1].to_i * 100) + 100)
+      #winner = original_left.include?(puzzle.left) &&
+      #         original_top.include?(puzzle.top) ? true : false
+      if original_left.include?(puzzle.left) &&
+         original_top.include?(puzzle.top)
+        winner = true
+      else
+        winner = false
+      end
+
       break unless winner
     end
+
     if winner
       show_or_hide_picture
-      quit! unless confirm("Congratulations! You are winner!!!\n" +
-                           'Would you like continue game?')
-      reload_table
+      if confirm("Congratulations! You are winner!!!\n" +
+                 "Let's play with other picture?")
+        reload_table
+        new_picture
+      end
     end
   end
   

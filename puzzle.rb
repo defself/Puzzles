@@ -4,27 +4,28 @@ class Puzzle
   attr_reader :dir
   
   def initialize(path)
-    @pic = Magick::Image.read(path).first
-    @all = {}
-    @dir = './data/puzzles/'
-    @ext = path[-4..-1]
+    @pic  = Magick::Image.read(path).first
+    @name = @pic.base_filename.split('.').first.split('/').last
+    @dir  = './data/puzzles/'
+    @ext  = path.split('.').last
+    @all  = {}
+    @output = {}
   end
 
   def split
+    return @all if @all.any?
+
     width, height = 800, 600
     split_width, split_height = 100, 100
     x, y = 0, 0 
     col, row = 0, 0
     self.resize_picture(width, height)
     
-    @all.clear unless @all.empty?
     while y < height
       while x < width
         self.extract(x, y, split_width, split_height) do |puzzle|
-          name = '%col_%row'.gsub(/\%col/, col.to_s).
-                             gsub(/\%row/, row.to_s)
-          puzzle.write("#{@dir + name + @ext}")
-          @all[name.to_sym] = puzzle
+          puzzle.write("#{@dir}#{@name}_#{row}#{col}.#{@ext}")
+          @all["#{row}#{col}".to_sym] = puzzle.base_filename
         end
         x   += split_width
         col += 1
